@@ -1,0 +1,100 @@
+# Makefile for SDL-based QuadTree Visualization
+# Cross-platform SDL Application
+
+# Compiler settings
+CXX = xcrun clang++
+SDK_PATH = $(shell xcrun --show-sdk-path)
+SDL2_PATH = $(shell brew --prefix sdl2)
+
+# Compiler flags
+CXXFLAGS = -std=c++17 -Wall -O2 -stdlib=libc++
+CXXFLAGS += -isystem $(SDK_PATH)/usr/include/c++/v1
+CXXFLAGS += -I$(SDL2_PATH)/include
+
+# Linker flags
+LDFLAGS = -L$(SDL2_PATH)/lib
+LIBS = -lSDL2 -lSDL2main
+
+# Source files
+CPP_SOURCES = QuadTree.cpp SDLRenderer.cpp main_sdl.cpp
+HEADERS = Point.h QuadTree.h SDLRenderer.h
+
+# Object files
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+
+# Target executable
+TARGET = QuadTreeSDL
+
+# Default target
+all: $(TARGET)
+
+# Build the main executable
+$(TARGET): $(CPP_OBJECTS)
+	$(CXX) $(CPP_OBJECTS) $(LDFLAGS) $(LIBS) -o $(TARGET)
+	@echo "SDL Build complete! Run with: ./$(TARGET)"
+
+# Compile C++ source files
+%.o: %.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Test the QuadTree implementation (reuse existing test)
+test: test_quadtree
+	./test_quadtree
+
+test_quadtree: test_quadtree.cpp QuadTree.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) test_quadtree.cpp QuadTree.cpp -o test_quadtree
+
+# Install dependencies (if needed)
+install-deps:
+	@echo "Checking SDL2 installation..."
+	@if ! brew list sdl2 >/dev/null 2>&1; then \
+		echo "Installing SDL2 via Homebrew..."; \
+		brew install sdl2; \
+	else \
+		echo "SDL2 is already installed"; \
+	fi
+
+# Clean build artifacts
+clean:
+	rm -f $(CPP_OBJECTS) $(TARGET) test_quadtree
+	@echo "Cleaned SDL build artifacts"
+
+# Debug build with extra flags
+debug: CXXFLAGS += -g -DDEBUG -O0
+debug: clean $(TARGET)
+	@echo "Debug build complete"
+
+# Release build with optimizations
+release: CXXFLAGS += -O3 -DNDEBUG
+release: clean $(TARGET)
+	@echo "Release build complete"
+
+# Run the application
+run: $(TARGET)
+	./$(TARGET)
+
+# Show help
+help:
+	@echo "SDL QuadTree Visualization Makefile"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all         - Build the SDL executable (default)"
+	@echo "  debug       - Build debug version with symbols"
+	@echo "  release     - Build optimized release version"
+	@echo "  test        - Run QuadTree functionality tests"
+	@echo "  run         - Build and run the application"
+	@echo "  install-deps - Install SDL2 dependencies"
+	@echo "  clean       - Remove build artifacts"
+	@echo "  help        - Show this help message"
+	@echo ""
+	@echo "Controls in application:"
+	@echo "  Left Click    - Add point"
+	@echo "  Left Drag     - Create query rectangle"
+	@echo "  Right Click   - Clear all points"
+	@echo "  Space         - Add 50 random points"
+	@echo "  R             - Add 200 random points"
+	@echo "  C             - Clear points"
+	@echo "  ESC           - Quit"
+
+# Declare phony targets
+.PHONY: all clean debug release run test help install-deps
