@@ -1,106 +1,94 @@
+# Makefile for QuadTree Visualization
+# macOS Cocoa Application
+
 # Compiler settings
-CXX = g++
-CXXFLAGS = -std=c++14 -Wall -Wextra -O2 -march=native
-DEBUG_FLAGS = -std=c++14 -Wall -Wextra -g -O0 -DDEBUG
-TARGET = QuadTreeExample
-SOURCES = QuadTree.cpp QuadTreeExample.cpp
-HEADERS = QuadTree.h
-OBJECTS = $(SOURCES:.cpp=.o)
+CXX = xcrun clang++
+SDK_PATH = $(shell xcrun --show-sdk-path)
+CXXFLAGS = -std=c++17 -Wall -O2 -stdlib=libc++ -isystem $(SDK_PATH)/usr/include/c++/v1
+OBJCFLAGS = -fobjc-arc
+FRAMEWORKS = -framework Cocoa -framework CoreGraphics
+
+# Source files
+CPP_SOURCES = QuadTree.cpp
+MM_SOURCES = QuadTreeRenderer.mm main.mm
+HEADERS = Point.h QuadTree.h QuadTreeRenderer.h
+
+# Object files
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+MM_OBJECTS = $(MM_SOURCES:.mm=.o)
+ALL_OBJECTS = $(CPP_OBJECTS) $(MM_OBJECTS)
+
+# Target executable
+TARGET = QuadTreeVisualization
 
 # Default target
 all: $(TARGET)
 
-# Release build
-$(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJECTS)
+# Build the main executable
+$(TARGET): $(ALL_OBJECTS)
+	$(CXX) $(ALL_OBJECTS) $(FRAMEWORKS) -o $(TARGET)
 	@echo "Build complete! Run with: ./$(TARGET)"
 
-# Debug build
-debug: CXXFLAGS = $(DEBUG_FLAGS)
-debug: $(TARGET)
-
-# Individual object files
+# Compile C++ source files
 %.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# Compile Objective-C++ source files
+%.o: %.mm $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(OBJCFLAGS) -c $< -o $@
+
+# Create application bundle (optional)
+bundle: $(TARGET)
+	@mkdir -p $(TARGET).app/Contents/MacOS
+	@mkdir -p $(TARGET).app/Contents/Resources
+	@cp $(TARGET) $(TARGET).app/Contents/MacOS/
+	@echo '<?xml version="1.0" encoding="UTF-8"?>' > $(TARGET).app/Contents/Info.plist
+	@echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> $(TARGET).app/Contents/Info.plist
+	@echo '<plist version="1.0">' >> $(TARGET).app/Contents/Info.plist
+	@echo '<dict>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<key>CFBundleExecutable</key>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<string>$(TARGET)</string>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<key>CFBundleIdentifier</key>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<string>com.example.quadtree</string>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<key>CFBundleName</key>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<string>QuadTree Visualization</string>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<key>CFBundleVersion</key>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<string>1.0</string>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<key>LSMinimumSystemVersion</key>' >> $(TARGET).app/Contents/Info.plist
+	@echo '	<string>10.12</string>' >> $(TARGET).app/Contents/Info.plist
+	@echo '</dict>' >> $(TARGET).app/Contents/Info.plist
+	@echo '</plist>' >> $(TARGET).app/Contents/Info.plist
+	@echo "App bundle created: $(TARGET).app"
+
+# Test the QuadTree implementation
+test: test_quadtree
+	./test_quadtree
+
+test_quadtree: test_quadtree.cpp $(CPP_SOURCES) $(HEADERS)
+	$(CXX) $(CXXFLAGS) test_quadtree.cpp QuadTree.cpp -o test_quadtree
+
 # Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TARGET) $(TARGET).exe
+	rm -f $(ALL_OBJECTS) $(TARGET) test_quadtree
+	rm -rf $(TARGET).app
+	@echo "Cleaned build artifacts"
 
-# Install dependencies (for development)
-install-deps:
-	@echo "No external dependencies required for this project."
-	@echo "Make sure you have a C++14 compatible compiler installed."
-
-# Run the example
-run: $(TARGET)
-	./$(TARGET)
-
-# Run with performance profiling (Linux/Mac)
-profile: $(TARGET)
-	time ./$(TARGET)
-
-# Windows-specific targets
-windows: CXX = g++
-windows: TARGET = QuadTreeExample.exe
-windows: $(TARGET)
-
-run-windows: windows
-	$(TARGET)
-
-# Help target
+# Show help
 help:
-	@echo "Available targets:"
-	@echo "  all       - Build the release version (default)"
-	@echo "  debug     - Build debug version with symbols"
-	@echo "  clean     - Remove build artifacts"
-	@echo "  run       - Build and run the example"
-	@echo "  profile   - Run with performance timing"
-	@echo "  windows   - Build for Windows"
-	@echo "  help      - Show this help message"
+	@echo "QuadTree Visualization Makefile"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all     - Build the executable (default)"
+	@echo "  bundle  - Create macOS app bundle"
+	@echo "  test    - Run QuadTree functionality tests"
+	@echo "  clean   - Remove build artifacts"
+	@echo "  help    - Show this help message"
+	@echo ""
+	@echo "Usage:"
+	@echo "  make        # Build the application"
+	@echo "  make bundle # Create .app bundle"
+	@echo "  make test   # Run tests"
+	@echo "  make clean  # Clean up"
 
-# Static analysis (if cppcheck is available)
-analyze:
-	@echo "Running static analysis..."
-	@if command -v cppcheck >/dev/null 2>&1; then \
-		cppcheck --enable=all --std=c++14 $(SOURCES) $(HEADERS); \
-	else \
-		echo "cppcheck not found. Install it for static analysis."; \
-	fi
-
-# Format code (if clang-format is available)
-format:
-	@echo "Formatting code..."
-	@if command -v clang-format >/dev/null 2>&1; then \
-		clang-format -i $(SOURCES) $(HEADERS); \
-		echo "Code formatted successfully."; \
-	else \
-		echo "clang-format not found. Install it for code formatting."; \
-	fi
-
-# Documentation generation (if doxygen is available)
-docs:
-	@echo "Generating documentation..."
-	@if command -v doxygen >/dev/null 2>&1; then \
-		echo "PROJECT_NAME = QuadTree" > Doxyfile.tmp; \
-		echo "INPUT = $(SOURCES) $(HEADERS)" >> Doxyfile.tmp; \
-		echo "OUTPUT_DIRECTORY = docs" >> Doxyfile.tmp; \
-		echo "GENERATE_HTML = YES" >> Doxyfile.tmp; \
-		echo "GENERATE_LATEX = NO" >> Doxyfile.tmp; \
-		doxygen Doxyfile.tmp; \
-		rm Doxyfile.tmp; \
-		echo "Documentation generated in docs/ directory"; \
-	else \
-		echo "doxygen not found. Install it for documentation generation."; \
-	fi
-
-# Benchmark target
-benchmark: $(TARGET)
-	@echo "Running benchmark..."
-	@for i in 1 2 3; do \
-		echo "Run $$i:"; \
-		time ./$(TARGET) | grep -E "(Insertion time|Query time|Queries per second)"; \
-		echo ""; \
-	done
-
-.PHONY: all debug clean run profile windows run-windows help analyze format docs benchmark install-deps
+# Declare phony targets
+.PHONY: all clean bundle help test
